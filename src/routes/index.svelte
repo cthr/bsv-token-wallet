@@ -156,6 +156,7 @@
 
 	const setPage = async(newPage) => {
 		page = newPage;
+		token.set(null);
 
 		if(newPage === "logout") {
 			address.set(null);
