@@ -171,6 +171,8 @@
 		let jigs = run.inventory.jigs;
 		let code = run.inventory.code;
 
+		console.log(code);
+
 		for(let i = 0; i < jigs.length; i++) {
 			if(jigs[i] instanceof Token) {
 				const rawtx = await run.blockchain.fetch(jigs[i].location.split("_")[0]);
@@ -185,7 +187,7 @@
 		}
 
 		for(let i = 0; i < code.length; i++) {
-			if(code[i] instanceof Token) {
+			if(Object.keys(code[i].deps)[0] === "Token") {
 				if(!classes.includes(code[i].location)) {
 					classes.push(code[i].location);
 				}
