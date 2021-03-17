@@ -165,7 +165,7 @@
 	const loadAllTokens = async () => {
 		await run.inventory.sync();
 
-		tokens.set([]);
+		let tempTokens = [];
 
 		let classes = [];
 		let jigs = run.inventory.jigs;
@@ -183,7 +183,7 @@
 
 		for(let i = 0; i < classes.length; i++) {
 			const contract = await run.load(classes[i]);
-			await contract.sync();
+			//await contract.sync();
 
 			if(Object.keys(contract.deps)[0] === "Token") {
 				let tknName = contract.name.replace(/_/g, " ");
@@ -197,7 +197,7 @@
 					return a + b['amount'];
 				}, 0);
 
-				$tokens = [...$tokens, {
+				tempTokens = [...tempTokens, {
 					name: tknName,
 					symbol: tknSymbol,
 					emoji: tknEmoji,
@@ -206,6 +206,8 @@
 				}]
 			}
 		}
+
+		tokens.set(tempTokens);
 	}
 
 	const logout = async() => {
