@@ -195,7 +195,7 @@
 
 		for(let i = 0; i < classes.length; i++) {
 			const contract = await run.load(classes[i]);
-			await contract.sync();
+			//await contract.sync();
 
 			if(Object.keys(contract.deps)[0] === "Token") {
 				let tknName = contract.name.replace(/_/g, " ");
