@@ -21,7 +21,7 @@
 	});
 
 	const login = async () => {
-		let wif = localStorage.getItem('privKey');
+		let wif = ""; //localStorage.getItem('privKey');
 
 		if(wif && wif !== "" && wif !== null) {
 			await loadFromPrivKey(wif);
@@ -140,7 +140,7 @@
 			address.set(addressFromPrivKey);
 			privateKey.set(key);
 
-			localStorage.setItem("privKey", key);
+			//localStorage.setItem("privKey", key);
 
 			await loadRun();
 		} catch(e) {
@@ -191,7 +191,7 @@
 
 	const logout = async() => {
 		setPage("logout");		
-		localStorage.setItem("privKey", "");
+		//localStorage.setItem("privKey", "");
 	}
 
 	login();
