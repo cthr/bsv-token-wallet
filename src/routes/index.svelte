@@ -157,6 +157,8 @@
 		if(newPage === "logout") {
 			address.set(null);
 			privateKey.set(null);
+		} else {
+			loadAllTokens();
 		}
 	}
 
