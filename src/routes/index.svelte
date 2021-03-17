@@ -30,19 +30,17 @@
 	}
 
 	const loadRun = async () => {
-		const unsubscribe = privateKey.subscribe(value => {
-			try {
-				run = new Run({
-					owner: value,
-					purse: value,
-					network: 'main'
-				});
+		try {
+			run = new Run({
+				owner: $privateKey,
+				purse: $privateKey,
+				network: 'main'
+			});
 
-				run.trust('*');
-			} catch(e) {
-				console.log("Unable to load Run SDK - Maybe you're signed out?")
-			}
-		});
+			run.trust('*');
+		} catch(e) {
+			console.log("Unable to load Run SDK - Maybe you're signed out?")
+		}
 
 		console.log("Run SDK loaded!");
 		page = "wallet";
@@ -51,7 +49,9 @@
 	}
 
 	const deployToken = async (tokenName, tokenSymbol, tokenEmoji, tokenMint) => {
-		class CoinClass extends Token {}
+		class CoinClass extends Token {
+
+		}
 		CoinClass.symbol = tokenSymbol;
 		CoinClass.metadata = {
 			emoji: tokenEmoji
@@ -164,20 +164,34 @@
 
 	const loadAllTokens = async () => {
 		await run.inventory.sync();
-		//console.log(Object.keys(run.inventory.code[0]));
 
 		tokens.set([]);
 
-		let classes = run.inventory.code;
+		let classes = [];
+		let jigs = run.inventory.jigs;
+
+		for(let i = 0; i < jigs.length; i++) {
+			if(jigs[i] instanceof Token) {
+				const rawtx = await run.blockchain.fetch(jigs[i].location.split("_")[0]);
+				const tknContract = Run.util.metadata(rawtx).ref[0];
+
+				if(!classes.includes(tknContract)) {
+					classes.push(tknContract);
+				}
+			}
+		}
 
 		for(let i = 0; i < classes.length; i++) {
-			if(Object.keys(run.inventory.code[i].deps)[0] === "Token") {
-				let tknName = classes[i].name.replace(/_/g, " ");
-				let tknSymbol = classes[i].symbol;
-				let tknEmoji = classes[i].metadata.emoji;
-				let tknLocation = classes[i].location;
+			const contract = await run.load(classes[i]);
+			await contract.sync();
 
-				const tknJigs = run.inventory.jigs.filter(jig => jig instanceof classes[i]);
+			if(Object.keys(contract.deps)[0] === "Token") {
+				let tknName = contract.name.replace(/_/g, " ");
+				let tknSymbol = contract.symbol;
+				let tknEmoji = contract.metadata.emoji;
+				let tknLocation = contract.location;
+
+				const tknJigs = run.inventory.jigs.filter(jig => jig instanceof contract);
 
 				let tknBalance = tknJigs.reduce(function(a, b){
 					return a + b['amount'];
