@@ -11,9 +11,10 @@
 
 	let inputPrivKey = "", loginErrorMessage = "";
 
-	let tokenLocation = "";
-
 	let sendToAddress = "", sendAmount = 0;
+
+	let addressQR = "";
+	let showPrivKey = false;
 
 	// L1uFp4xfhsX9wvRofTq27EdMN2AvBJDD7zNMY9pzxxMS2njiH3NE
 	onMount(async () => {
@@ -138,6 +139,8 @@
 			let addressFromPrivKey = privKeyFromWIF.toAddress();
 
 			address.set(addressFromPrivKey);
+			createQRCode();
+
 			privateKey.set(key);
 
 			localStorage.setItem("privKey", key);
@@ -159,7 +162,7 @@
 
 	const loadAllTokens = async () => {
 		await run.inventory.sync();
-		console.log(Object.keys(run.inventory.code[0]));
+		//console.log(Object.keys(run.inventory.code[0]));
 
 		tokens.set([]);
 
@@ -193,6 +196,15 @@
 		setPage("logout");		
 		localStorage.setItem("privKey", "");
 	}
+
+	const createQRCode = async () => {
+		const qr = qrcode(0, 'L');
+		qr.width = 200;
+		qr.addData(`bitcoin:${$address}?sv`);
+		qr.make();
+
+		addressQR = qr.createDataURL(6);
+	}
 </script>
 
 <svelte:head>
@@ -204,12 +216,13 @@
 		{#if page !== "logout"}
 			<div class="flex w-full mb-4">
 				<div class="flex">
-					<a on:click|preventDefault={() => setPage("wallet")} href="#" class="block py-2 text-base font-semibold {page === "wallet" ? "text-indigo-400" : "text-gray-700"} transition-colors duration-200 transform hover:text-indigo-200">Wallet</a>
-					<a on:click|preventDefault={() => setPage("create")} href="#" class="block py-2 mx-4 text-base font-semibold {page === "create" ? "text-indigo-400" : "text-gray-700"} transition-colors duration-200 transform hover:text-indigo-400">Create Token</a>
+					<a on:click|preventDefault={() => setPage("wallet")} href="#" class="block py-2 mr-3 text-base font-semibold {page === "wallet" ? "text-indigo-400" : "text-gray-700"} transition-colors duration-200 transform hover:text-indigo-200">Wallet</a>
+					<a on:click|preventDefault={() => setPage("create")} href="#" class="block py-2 mx-3 text-base font-semibold {page === "create" ? "text-indigo-400" : "text-gray-700"} transition-colors duration-200 transform hover:text-indigo-400">Deploy</a>
+					<a on:click|preventDefault={() => setPage("address")} href="#" class="block py-2 mx-3 text-base font-semibold {page === "address" ? "text-indigo-400" : "text-gray-700"} transition-colors duration-200 transform hover:text-indigo-400">Address</a>
 				</div>
 
-				<div class="flex float-right">
-					<a on:click|preventDefault={() => logout()} href="#" class="block py-2 mx-4 text-base font-semibold {page === "logout" ? "text-indigo-400" : "text-gray-700"} transition-colors duration-200 transform hover:text-indigo-400">Logout</a>
+				<div class="w-full">
+					<a on:click|preventDefault={() => logout()} href="#" class="block float-right py-2 text-base font-semibold {page === "logout" ? "text-indigo-400" : "text-gray-700"} transition-colors duration-200 transform hover:text-indigo-400">Logout</a>
 				</div>
 			</div>
 		{/if}
@@ -250,6 +263,19 @@
 					<a on:click|preventDefault={() => token.set(null)} href="#" class="block px-3 py-2 mx-4 text-xs font-semibold text-gray-700 transition-colors duration-200 transform bg-gray-200 rounded-md hover:bg-gray-300">Go Back</a>
 					<a on:click|preventDefault={() => send(sendToAddress, parseInt(sendAmount))} href="#" class="block px-3 py-2 text-xs font-semibold text-white transition-colors duration-200 transform bg-gray-900 rounded-md hover:bg-gray-700">Send Token</a>
 				</div>
+			{/if}
+		{:else if page === "address"}
+			<h2 class="text-2xl font-semibold text-gray-800 dark:text-white md:text-3xl">Your <span class="text-indigo-600 dark:text-indigo-400">Token</span> Address</h2>
+			<p class="mt-2 text-sm text-gray-500 dark:text-gray-400 md:text-base">You should only deposit $BSV and BSV Tokens!‎‎‏‏‎ ‎ ‎ ‎ ‎</p>
+			<div class="flex w-full justify-center">
+				<img class="flex content-center" src="{addressQR}" alt="Address QR Code" />
+			</div>
+			<p class="font-bold text-xs text-center">{$address}</p>
+			<div class="flex w-full justify-center">
+				<a href="#" on:click|preventDefault={() => showPrivKey = !showPrivKey} class="text-xs text-center w-full">{showPrivKey ? "Hide" : "Show"} Private Key</a>
+			</div>
+			{#if showPrivKey}
+				<p class="text-center" style="font-size: 0.5rem;">{$privateKey}</p>
 			{/if}
 		{:else if page === "create"}
 			<CreateToken deployToken={deployToken} deployedLocation={deployedLocation} />

@@ -6,7 +6,7 @@
 
 <h2 class="text-2xl font-semibold text-gray-800 dark:text-white md:text-3xl">Create Your <span class="text-indigo-600 dark:text-indigo-400">Token</span></h2>
 					
-<p class="mt-2 text-sm text-gray-500 dark:text-gray-400 md:text-base">Simply enter the tokens details and press deploy!</p>
+<p class="mt-2 text-sm text-gray-500 dark:text-gray-400 md:text-base">Simply enter the tokens details and press deploy!‎‎‏‏‎ ‎</p>
 
 <label class="block mt-4">
     <span class="text-gray-500">Token Name</span>
