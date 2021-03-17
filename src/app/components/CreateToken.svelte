@@ -34,5 +34,5 @@
 
 {#if deployedLocation !== ""}
     <p class="mt-2 text-sm text-gray-500 dark:text-gray-400 md:text-base">Your token has been deployed:</p>
-    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400 md:text-base">{deployedLocation}</p>
+    <p class="mt-2 text-gray-500 dark:text-gray-400 md:text-base" style="font-size: 0.5rem;">{deployedLocation}</p>
 {/if}

@@ -170,7 +170,7 @@
 
 		for(let i = 0; i < classes.length; i++) {
 			if(Object.keys(run.inventory.code[i].deps)[0] === "Token") {
-				let tknName = classes[i].name.replace(/_/g, "");
+				let tknName = classes[i].name.replace(/_/g, " ");
 				let tknSymbol = classes[i].symbol;
 				let tknEmoji = classes[i].metadata.emoji;
 				let tknLocation = classes[i].location;
