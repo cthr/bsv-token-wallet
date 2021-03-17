@@ -209,13 +209,15 @@
 					return a + b['amount'];
 				}, 0);
 
-				tempTokens = [...tempTokens, {
-					name: tknName,
-					symbol: tknSymbol,
-					emoji: tknEmoji,
-					balance: tknBalance,
-					location: tknLocation
-				}]
+				if(tknBalance > 0) {
+					tempTokens = [...tempTokens, {
+						name: tknName,
+						symbol: tknSymbol,
+						emoji: tknEmoji,
+						balance: tknBalance,
+						location: tknLocation
+					}];
+				}
 			}
 		}
 
