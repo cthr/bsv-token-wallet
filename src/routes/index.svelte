@@ -169,6 +169,7 @@
 
 		let classes = [];
 		let jigs = run.inventory.jigs;
+		let code = run.inventory.code;
 
 		for(let i = 0; i < jigs.length; i++) {
 			if(jigs[i] instanceof Token) {
@@ -182,6 +183,17 @@
 				}
 			}
 		}
+
+		for(let i = 0; i < code.length; i++) {
+			if(code[i] instanceof Token) {
+				if(!classes.includes(code[i].location)) {
+					classes.push(code[i].location);
+				}
+			}
+		}
+
+		console.log("------");
+		console.log(classes);
 
 		for(let i = 0; i < classes.length; i++) {
 			const contract = await run.load(classes[i]);
