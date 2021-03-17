@@ -104,6 +104,9 @@
 		const sent = coin.send(toAddress, tokenAmount);
 		await sent.sync();
 		console.log(sent);
+
+		sendToAddress = "";
+		sendAmount = 0;
 	}
 
 	const combine = async(location) => {
@@ -171,14 +174,10 @@
 		let jigs = run.inventory.jigs;
 		let code = run.inventory.code;
 
-		console.log(code);
-
 		for(let i = 0; i < jigs.length; i++) {
 			if(jigs[i] instanceof Token) {
 				const rawtx = await run.blockchain.fetch(jigs[i].location.split("_")[0]);
 				const tknContract = Run.util.metadata(rawtx).ref[0];
-
-				console.log(Run.util.metadata(rawtx));
 
 				if(!classes.includes(tknContract)) {
 					classes.push(tknContract);
@@ -193,9 +192,6 @@
 				}
 			}
 		}
-
-		console.log("------");
-		console.log(classes);
 
 		for(let i = 0; i < classes.length; i++) {
 			const contract = await run.load(classes[i]);
