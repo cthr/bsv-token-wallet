@@ -266,7 +266,7 @@
 			{/if}
 		{:else if page === "address"}
 			<h2 class="text-2xl font-semibold text-gray-800 dark:text-white md:text-3xl">Your <span class="text-indigo-600 dark:text-indigo-400">Token</span> Address</h2>
-			<p class="mt-2 text-sm text-gray-500 dark:text-gray-400 md:text-base">You should only deposit $BSV and BSV Tokens!‎‎‏‏‎ ‎ ‎ ‎ ‎</p>
+			<p class="mt-2 text-sm text-gray-500 dark:text-gray-400 md:text-base">You should only deposit $BSV and BSV Tokens!‎‎‏‏‎ ‎ ‎ ‎  ‎‎</p>
 			<div class="flex w-full justify-center">
 				<img class="flex content-center" src="{addressQR}" alt="Address QR Code" />
 			</div>
