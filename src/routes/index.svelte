@@ -175,6 +175,8 @@
 				const rawtx = await run.blockchain.fetch(jigs[i].location.split("_")[0]);
 				const tknContract = Run.util.metadata(rawtx).ref[0];
 
+				console.log(Run.util.metadata(rawtx));
+
 				if(!classes.includes(tknContract)) {
 					classes.push(tknContract);
 				}
@@ -183,7 +185,7 @@
 
 		for(let i = 0; i < classes.length; i++) {
 			const contract = await run.load(classes[i]);
-			//await contract.sync();
+			await contract.sync();
 
 			if(Object.keys(contract.deps)[0] === "Token") {
 				let tknName = contract.name.replace(/_/g, " ");
