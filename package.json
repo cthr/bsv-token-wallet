@@ -20,6 +20,8 @@
 		"node": ">= 12.17.0"
 	},
 	"dependencies": {
-		"@fortawesome/fontawesome-free": "^5.15.3"
+		"@fortawesome/fontawesome-free": "^5.15.3",
+		"big.js": "^6.0.3",
+		"bignumber.js": "^9.0.1"
 	}
 }

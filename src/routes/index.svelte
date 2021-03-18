@@ -1,8 +1,12 @@
 <script>
 	import { onMount } from 'svelte';
+	import Big from 'big.js';
+	import BigNumber from 'bignumber.js';
 	import { address, privateKey, token, tokens } from '../app/_utils/stores';
 	import CreateToken from '../app/components/CreateToken.svelte';
 	import Login from '../app/components/Login.svelte';
+
+	const MAX_SAFE_VALUE = BigNumber(9000000000000000);
 
 	let page = "logout";
 
@@ -15,6 +19,8 @@
 
 	let addressQR = "";
 	let showPrivKey = false;
+
+	let bsvBalance = 0;
 
 	// L1uFp4xfhsX9wvRofTq27EdMN2AvBJDD7zNMY9pzxxMS2njiH3NE
 	onMount(async () => {
@@ -48,11 +54,12 @@
 		loadAllTokens();
 	}
 
-	const deployToken = async (tokenName, tokenSymbol, tokenEmoji, tokenMint) => {
+	const deployToken = async (tokenName, tokenSymbol, tokenEmoji, tokenMint, tokenDecimals) => {
 		class CoinClass extends Token {
 
 		}
 		CoinClass.symbol = tokenSymbol;
+		CoinClass.decimals = tokenDecimals;
 		CoinClass.metadata = {
 			emoji: tokenEmoji
 		}
@@ -70,18 +77,58 @@
 		console.log("Deploying Token");
 		await deploy();
 
-		mint(tokenMint);
+		let atomicMint = await convDecimalToAtomic(tokenMint, tokenDecimals);
+		atomicMint = atomicMint.toFixed(0);
+
+		console.log(atomicMint);
+		console.log(BigNumber(atomicMint).div(MAX_SAFE_VALUE) > 1);
+
+		if(BigNumber(atomicMint).div(MAX_SAFE_VALUE) > 1) {
+			console.log("Ok");
+			let amounts = [];
+			let factors = Math.ceil(BigNumber(atomicMint).div(MAX_SAFE_VALUE));
+			
+			console.log(factors);
+			let amountLeft = atomicMint;
+			for(let i = 0; i < factors; i++) {
+				let amount;
+				if(BigNumber(amountLeft).div(MAX_SAFE_VALUE) >= 1) {
+					amount = MAX_SAFE_VALUE;
+					amountLeft = amountLeft - amount;
+				} else {
+					amount = amountLeft;
+				}
+
+				amounts.push(amount.toFixed(0));
+			}
+
+			console.log(amounts);
+			for(let i = 0; i < amounts.length; i++) {
+				await mint(amounts[i]);
+				await delay(1000);
+				//await combine(deployedLocation);
+			}
+		} else {
+			//mint(atomicMint);
+		}
 	}
 
 	const mint = async(tokenMint) => {
 		const contract = await run.load(deployedLocation);
 		await contract.sync();
 
+		console.log(Number(tokenMint));
+
 		// Mint to owner address
-		const coin = contract.mint(tokenMint);
+		const coin = contract.mint(Number(tokenMint));
 		await coin.sync();
 
 		console.log(coin);
+	}
+
+	const sendBitcoin = async(toAddress, bsvAmount) => {
+		const rawtx = new bsv.Transaction().to(toAddress, bsvAmount).sign($privateKey).toString('hex');
+		await run.blockchain.broadcast(rawtx);
 	}
 
 	const send = async(toAddress, tokenAmount) => {
@@ -120,6 +167,10 @@
 		console.log(tokens);
 
 		if(tokens.length > 1) {
+			console.log(Number(BigNumber(tokens[0].amount)) + Number(BigNumber(tokens[1].amount)));
+			console.log(Number(BigNumber(tokens[0].amount)) + Number(BigNumber(tokens[1].amount)) > MAX_SAFE_VALUE);
+			if(Number(BigNumber(tokens[0].amount)) + Number(BigNumber(tokens[1].amount)) > MAX_SAFE_VALUE) return;
+
 			const combined = tokens[0].combine(...tokens.slice(1));
 			await combined.sync();
 		}
@@ -168,6 +219,7 @@
 
 	const loadAllTokens = async () => {
 		await run.inventory.sync();
+		bsvBalance = await run.purse.balance();
 
 		let tempTokens = [];
 
@@ -180,11 +232,15 @@
 				const rawtx = await run.blockchain.fetch(jigs[i].location.split("_")[0]);
 				const tknContract = Run.util.metadata(rawtx).ref[0];
 
+				console.log(Run.util.metadata(rawtx));
+
 				if(!classes.includes(tknContract)) {
 					classes.push(tknContract);
 				}
 			}
 		}
+
+		console.log(classes);
 
 		for(let i = 0; i < code.length; i++) {
 			if(Object.keys(code[i].deps)[0] === "Token") {
@@ -201,6 +257,7 @@
 			if(Object.keys(contract.deps)[0] === "Token") {
 				let tknName = contract.name.replace(/_/g, " ");
 				let tknSymbol = contract.symbol;
+				let tknDecimals = contract.decimals;
 				let tknEmoji = contract.metadata.emoji;
 				let tknLocation = contract.location;
 
@@ -209,6 +266,8 @@
 				let tknBalance = tknJigs.reduce(function(a, b){
 					return a + b['amount'];
 				}, 0);
+
+				tknBalance = await convAtomicToDecimal(tknBalance, tknDecimals);
 
 				if(tknBalance > 0) {
 					tempTokens = [...tempTokens, {
@@ -238,6 +297,24 @@
 
 		addressQR = qr.createDataURL(6);
 	}
+
+	const convAtomicToDecimal = async (amount, decimals) => {
+		let atomicAmount = new BigNumber(amount);
+		let atomCalc = atomicAmount.div(10**decimals);
+
+		return atomCalc;
+	}
+
+	const convDecimalToAtomic = async (amount, decimals) => {
+		let decimalAmount = new BigNumber(amount);
+		let decCalc = decimalAmount.times(10**decimals);
+
+		return decCalc;
+	}
+
+	function delay(ms) {
+		return new Promise(resolve => setTimeout(resolve, ms));
+	}
 </script>
 
 <svelte:head>
@@ -265,6 +342,20 @@
 			<p class="mt-2 text-sm text-gray-500 dark:text-gray-400 md:text-base">View and manage your tokens from this interface!</p>
 
 			{#if $token === null}
+				<div on:click|preventDefault={() => token.set("bitcoin")} class="container flex mx-auto w-full items-center justify-center">
+					<ul class="flex flex-col mt-1 w-full">
+						<li class="border-gray-400 flex flex-row mb-2">
+							<div class="select-none cursor-pointer bg-gray-200 rounded-md flex flex-1 items-center p-4  transition duration-500 ease-in-out transform hover:-translate-y-1 hover:shadow-lg">
+								<div class="flex flex-col rounded-md w-10 h-10 bg-gray-300 justify-center items-center mr-4"><img class="p-2" src="./img/bsv.svg" alt="Bitcoin SV" /></div>
+								<div class="flex-1 pl-1 mr-16">
+									<div class="font-medium">Bitcoin SV</div>
+									<div class="text-gray-600 text-sm">BSV</div>
+								</div>
+								<div class="text-gray-600 text-xs">{bsvBalance}</div>
+							</div>
+						</li>
+					</ul>
+				</div>
 				{#each $tokens as tkn}
 					<div on:click|preventDefault={() => token.set(tkn)} class="container flex mx-auto w-full items-center justify-center">
 						<ul class="flex flex-col mt-1 w-full">
@@ -288,13 +379,17 @@
 				</label>
 
 				<label class="block mt-4">
-					<span class="text-gray-500">Amount {$token.emoji}</span>
+					{#if $token === "bitcoin"}
+						<span class="flex text-gray-500">Amount <img class="flex ml-1 w-4" src="./img/bsv.svg" alt="Bitcoin SV" /></span>
+					{:else}
+						<span class="text-gray-500">Amount {$token.emoji}</span>
+					{/if}
 					<input bind:value={sendAmount} class="form-input mt-1 block w-full shadow appearance-none border rounded py-2 px-3 text-grey-darker" placeholder="10">
 				</label>
 
 				<div class="flex mt-4 float-right">
 					<a on:click|preventDefault={() => { setPage("wallet"); token.set(null); }} href="#" class="block px-3 py-2 mx-4 text-xs font-semibold text-gray-700 transition-colors duration-200 transform bg-gray-200 rounded-md hover:bg-gray-300">Go Back</a>
-					<a on:click|preventDefault={() => send(sendToAddress, parseInt(sendAmount))} href="#" class="block px-3 py-2 text-xs font-semibold text-white transition-colors duration-200 transform bg-gray-900 rounded-md hover:bg-gray-700">Send Token</a>
+					<a on:click|preventDefault={() => {$token === "bitcoin" ? sendBitcoin(sendToAddress, parseInt(sendAmount)) : send(sendToAddress, parseInt(sendAmount))}} href="#" class="block px-3 py-2 text-xs font-semibold text-white transition-colors duration-200 transform bg-gray-900 rounded-md hover:bg-gray-700">Send Token</a>
 				</div>
 			{/if}
 		{:else if page === "address"}
