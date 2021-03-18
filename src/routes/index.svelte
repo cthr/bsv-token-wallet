@@ -1,6 +1,5 @@
 <script>
 	import { onMount } from 'svelte';
-	import Big from 'big.js';
 	import BigNumber from 'bignumber.js';
 	import { address, privateKey, token, tokens } from '../app/_utils/stores';
 	import CreateToken from '../app/components/CreateToken.svelte';
@@ -240,8 +239,6 @@
 			}
 		}
 
-		console.log(classes);
-
 		for(let i = 0; i < code.length; i++) {
 			if(Object.keys(code[i].deps)[0] === "Token") {
 				if(!classes.includes(code[i].location)) {
@@ -249,6 +246,8 @@
 				}
 			}
 		}
+
+		console.log(classes);
 
 		for(let i = 0; i < classes.length; i++) {
 			const contract = await run.load(classes[i]);
