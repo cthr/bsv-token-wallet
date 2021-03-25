@@ -5,7 +5,6 @@
 	import CreateToken from '../lib/CreateToken.svelte';
 	import Login from '../lib/Login.svelte';
 
-	const MAX_SAFE_VALUE = BigNumber(9000000000000000);
 	let page = "logout";
 	let run;
 	let deployedLocation = "";
@@ -14,16 +13,19 @@
 	let addressQR = "";
 	let showPrivKey = false;
 	let bsvBalance = 0;
+
 	// L1uFp4xfhsX9wvRofTq27EdMN2AvBJDD7zNMY9pzxxMS2njiH3NE
 	onMount(async () => {
 		login();
 	});
+
 	const login = async () => {
 		let wif = localStorage.getItem('privKey');
 		if(wif && wif !== "" && wif !== null) {
 			await loadFromPrivKey(wif);
 		}
 	}
+
 	const loadRun = async () => {
 		try {
 			run = new Run({
@@ -39,85 +41,89 @@
 		page = "wallet";
 		loadAllTokens();
 	}
+
 	const deployToken = async (tokenName, tokenSymbol, tokenEmoji, tokenMint, tokenDecimals) => {
 		class CoinClass extends Token {
+			// override _checkAmount to remove MAX_SAFE_INTEGER check, i don't know if this is safe..
+			_checkAmount (amount) {
+				if (typeof amount !== 'number') throw new Error('amount is not a number')
+				if (!Number.isInteger(amount)) throw new Error('amount must be an integer')
+				if (amount <= 0) throw new Error('amount must be positive')
+			}
 		}
+
 		CoinClass.symbol = tokenSymbol;
 		CoinClass.decimals = tokenDecimals;
 		CoinClass.metadata = {
 			emoji: tokenEmoji
 		}
+
 		const deploy = async () => {
 			run.deploy(CoinClass);
 			await run.sync();
 			console.log(CoinClass.location);
 			deployedLocation = CoinClass.location;
 		}
+
 		let className = tokenName.replace(/ /g,"_");
 		Object.defineProperty (CoinClass, 'name', {value: className});
-		console.log("Deploying Token");
+
 		await deploy();
+
 		let atomicMint = await convDecimalToAtomic(tokenMint, tokenDecimals);
-		atomicMint = atomicMint.toFixed(0);
 		console.log(atomicMint);
-		console.log(BigNumber(atomicMint).div(MAX_SAFE_VALUE) > 1);
-		if(BigNumber(atomicMint).div(MAX_SAFE_VALUE) > 1) {
-			console.log("Ok");
-			let amounts = [];
-			let factors = Math.ceil(BigNumber(atomicMint).div(MAX_SAFE_VALUE));
-			
-			console.log(factors);
-			let amountLeft = atomicMint;
-			for(let i = 0; i < factors; i++) {
-				let amount;
-				if(BigNumber(amountLeft).div(MAX_SAFE_VALUE) >= 1) {
-					amount = MAX_SAFE_VALUE;
-					amountLeft = amountLeft - amount;
-				} else {
-					amount = amountLeft;
-				}
-				amounts.push(amount.toFixed(0));
-			}
-			console.log(amounts);
-			for(let i = 0; i < amounts.length; i++) {
-				await mint(amounts[i]);
-				await delay(1000);
-				//await combine(deployedLocation);
-			}
-		} else {
-			//mint(atomicMint);
-		}
+
+		let amountToMint = BN(atomicMint.toFixed(0));
+
+		// mint the tokens
+		mint(amountToMint);
 	}
+
 	const mint = async(tokenMint) => {
 		const contract = await run.load(deployedLocation);
 		await contract.sync();
 		console.log(Number(tokenMint));
-		// Mint to owner address
+
+		// mint to owner address
 		const coin = contract.mint(Number(tokenMint));
 		await coin.sync();
 		console.log(coin);
 	}
+
 	const sendBitcoin = async(toAddress, bsvAmount) => {
 		const rawtx = new bsv.Transaction().to(toAddress, bsvAmount).sign($privateKey).toString('hex');
 		await run.blockchain.broadcast(rawtx);
 	}
-	const send = async(toAddress, tokenAmount) => {
-		console.log("Sending " + tokenAmount + " tokens to " + toAddress);
+
+	const send = async(toAddress, tokenAmount, tokenDecimals) => {
+		console.log("Sending " + await convDecimalToAtomic(tokenAmount, tokenDecimals) + " tokens to " + toAddress);
+		
 		let currentTokenLocation = $token.location;
 		await combine(currentTokenLocation);
+
 		const contract = await run.load(currentTokenLocation);
 		await contract.sync();
+
 		console.log(contract);
 		await run.inventory.sync();
+
 		const tokens = run.inventory.jigs.filter(jig => jig instanceof contract);
 		console.log(tokens);
+
+		let atomicSend = await convDecimalToAtomic(tokenAmount, tokenDecimals);
+		let amountToSend = BN(atomicSend).toFixed(0);
+
+		console.log(amountToSend);
+
 		const coin = tokens[0];
-		const sent = coin.send(toAddress, tokenAmount);
+		const sent = coin.send(toAddress, Number(amountToSend));
 		await sent.sync();
+
 		console.log(sent);
 		sendToAddress = "";
 		sendAmount = 0;
 	}
+
 	const combine = async(location) => {
 		const contract = await run.load(location);
 		await contract.sync();
@@ -126,13 +132,11 @@
 		const tokens = run.inventory.jigs.filter(jig => jig instanceof contract);
 		console.log(tokens);
 		if(tokens.length > 1) {
-			console.log(Number(BigNumber(tokens[0].amount)) + Number(BigNumber(tokens[1].amount)));
-			console.log(Number(BigNumber(tokens[0].amount)) + Number(BigNumber(tokens[1].amount)) > MAX_SAFE_VALUE);
-			if(Number(BigNumber(tokens[0].amount)) + Number(BigNumber(tokens[1].amount)) > MAX_SAFE_VALUE) return;
 			const combined = tokens[0].combine(...tokens.slice(1));
 			await combined.sync();
 		}
 	}
+
 	const newWallet = async() => {
 		console.log("Creating new wallet");
 		let newPrivKey = bsv.PrivateKey.fromRandom();
@@ -141,6 +145,7 @@
 		console.log(newPrivKey.toString());
 		inputPrivKey = newPrivKey.toString();
 	}
+
 	const loadFromPrivKey = async(key) => {
 		try {
 			let privKeyFromWIF = bsv.PrivateKey.fromWIF(key);
@@ -154,6 +159,7 @@
 			loginErrorMessage = "Error: Bad input!";
 		}
 	}
+
 	const setPage = async(newPage) => {
 		page = newPage;
 		token.set(null);
@@ -164,6 +170,7 @@
 			loadAllTokens();
 		}
 	}
+
 	const loadAllTokens = async () => {
 		await run.inventory.sync();
 		bsvBalance = await run.purse.balance();
@@ -199,27 +206,34 @@
 				let tknEmoji = contract.metadata.emoji;
 				let tknLocation = contract.location;
 				const tknJigs = run.inventory.jigs.filter(jig => jig instanceof contract);
+				console.log(tknJigs);
+
 				let tknBalance = tknJigs.reduce(function(a, b){
 					return a + b['amount'];
 				}, 0);
+				console.log(tknBalance);
 				tknBalance = await convAtomicToDecimal(tknBalance, tknDecimals);
+				console.log(tknBalance);
 				if(tknBalance > 0) {
 					tempTokens = [...tempTokens, {
 						name: tknName,
 						symbol: tknSymbol,
 						emoji: tknEmoji,
 						balance: tknBalance,
-						location: tknLocation
+						location: tknLocation,
+						decimals: tknDecimals
 					}];
 				}
 			}
 		}
 		tokens.set(tempTokens);
 	}
+
 	const logout = async() => {
 		setPage("logout");		
 		localStorage.setItem("privKey", "");
 	}
+
 	const createQRCode = async () => {
 		const qr = qrcode(0, 'L');
 		qr.width = 200;
@@ -227,18 +241,25 @@
 		qr.make();
 		addressQR = qr.createDataURL(6);
 	}
+
 	const convAtomicToDecimal = async (amount, decimals) => {
 		let atomicAmount = new BigNumber(amount);
 		let atomCalc = atomicAmount.div(10**decimals);
 		return atomCalc;
 	}
+
 	const convDecimalToAtomic = async (amount, decimals) => {
 		let decimalAmount = new BigNumber(amount);
 		let decCalc = decimalAmount.times(10**decimals);
 		return decCalc;
 	}
+
 	function delay(ms) {
 		return new Promise(resolve => setTimeout(resolve, ms));
+	}
+
+	function BN(number) {
+		return new BigNumber(number);
 	}
 </script>
 
@@ -291,7 +312,10 @@
 										<div class="font-medium">{tkn.name}</div>
 										<div class="text-gray-600 text-sm">{tkn.symbol}</div>
 									</div>
-									<div class="text-gray-600 text-xs">{tkn.balance}</div>
+									<div class="text-xs text-right">
+										<p class="text-gray-600">{tkn.balance}</p>
+										<p class="text-gray-400">{tkn.decimals} Decimals</p>
+									</div>
 								</div>
 							</li>
 						</ul>
@@ -314,7 +338,7 @@
 
 				<div class="flex mt-4 float-right">
 					<a on:click|preventDefault={() => { setPage("wallet"); token.set(null); }} href="#" class="block px-3 py-2 mx-4 text-xs font-semibold text-gray-700 transition-colors duration-200 transform bg-gray-200 rounded-md hover:bg-gray-300">Go Back</a>
-					<a on:click|preventDefault={() => {$token === "bitcoin" ? sendBitcoin(sendToAddress, parseInt(sendAmount)) : send(sendToAddress, parseInt(sendAmount))}} href="#" class="block px-3 py-2 text-xs font-semibold text-white transition-colors duration-200 transform bg-gray-900 rounded-md hover:bg-gray-700">Send Token</a>
+					<a on:click|preventDefault={() => {$token === "bitcoin" ? sendBitcoin(sendToAddress, parseInt(sendAmount)) : send(sendToAddress, sendAmount, $token.decimals)}} href="#" class="block px-3 py-2 text-xs font-semibold text-white transition-colors duration-200 transform bg-gray-900 rounded-md hover:bg-gray-700">Send Token</a>
 				</div>
 			{/if}
 		{:else if page === "address"}
