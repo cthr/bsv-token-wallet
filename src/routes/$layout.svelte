@@ -1,8 +1,7 @@
 <script>
-  import '$css';
-  import MainLayout from "$layouts/main.svelte";
+    import './_main.postcss';
 </script>
 
-<MainLayout>
-  <slot/>
-</MainLayout>
+<main>
+    <slot/>
+</main>

@@ -1,39 +1,29 @@
 <script>
 	import { onMount } from 'svelte';
 	import BigNumber from 'bignumber.js';
-	import { address, privateKey, token, tokens } from '../app/_utils/stores';
-	import CreateToken from '../app/components/CreateToken.svelte';
-	import Login from '../app/components/Login.svelte';
+	import { address, privateKey, token, tokens } from '../util/stores';
+	import CreateToken from '../lib/CreateToken.svelte';
+	import Login from '../lib/Login.svelte';
 
 	const MAX_SAFE_VALUE = BigNumber(9000000000000000);
-
 	let page = "logout";
-
 	let run;
 	let deployedLocation = "";
-
 	let inputPrivKey = "", loginErrorMessage = "";
-
 	let sendToAddress = "", sendAmount = 0;
-
 	let addressQR = "";
 	let showPrivKey = false;
-
 	let bsvBalance = 0;
-
 	// L1uFp4xfhsX9wvRofTq27EdMN2AvBJDD7zNMY9pzxxMS2njiH3NE
 	onMount(async () => {
 		login();
 	});
-
 	const login = async () => {
 		let wif = localStorage.getItem('privKey');
-
 		if(wif && wif !== "" && wif !== null) {
 			await loadFromPrivKey(wif);
 		}
 	}
-
 	const loadRun = async () => {
 		try {
 			run = new Run({
@@ -41,47 +31,36 @@
 				purse: $privateKey,
 				network: 'main'
 			});
-
 			run.trust('*');
 		} catch(e) {
 			console.log("Unable to load Run SDK - Maybe you're signed out?")
 		}
-
 		console.log("Run SDK loaded!");
 		page = "wallet";
-
 		loadAllTokens();
 	}
-
 	const deployToken = async (tokenName, tokenSymbol, tokenEmoji, tokenMint, tokenDecimals) => {
 		class CoinClass extends Token {
-
 		}
 		CoinClass.symbol = tokenSymbol;
 		CoinClass.decimals = tokenDecimals;
 		CoinClass.metadata = {
 			emoji: tokenEmoji
 		}
-
 		const deploy = async () => {
 			run.deploy(CoinClass);
 			await run.sync();
 			console.log(CoinClass.location);
 			deployedLocation = CoinClass.location;
 		}
-
 		let className = tokenName.replace(/ /g,"_");
 		Object.defineProperty (CoinClass, 'name', {value: className});
-
 		console.log("Deploying Token");
 		await deploy();
-
 		let atomicMint = await convDecimalToAtomic(tokenMint, tokenDecimals);
 		atomicMint = atomicMint.toFixed(0);
-
 		console.log(atomicMint);
 		console.log(BigNumber(atomicMint).div(MAX_SAFE_VALUE) > 1);
-
 		if(BigNumber(atomicMint).div(MAX_SAFE_VALUE) > 1) {
 			console.log("Ok");
 			let amounts = [];
@@ -97,10 +76,8 @@
 				} else {
 					amount = amountLeft;
 				}
-
 				amounts.push(amount.toFixed(0));
 			}
-
 			console.log(amounts);
 			for(let i = 0; i < amounts.length; i++) {
 				await mint(amounts[i]);
@@ -111,103 +88,75 @@
 			//mint(atomicMint);
 		}
 	}
-
 	const mint = async(tokenMint) => {
 		const contract = await run.load(deployedLocation);
 		await contract.sync();
-
 		console.log(Number(tokenMint));
-
 		// Mint to owner address
 		const coin = contract.mint(Number(tokenMint));
 		await coin.sync();
-
 		console.log(coin);
 	}
-
 	const sendBitcoin = async(toAddress, bsvAmount) => {
 		const rawtx = new bsv.Transaction().to(toAddress, bsvAmount).sign($privateKey).toString('hex');
 		await run.blockchain.broadcast(rawtx);
 	}
-
 	const send = async(toAddress, tokenAmount) => {
 		console.log("Sending " + tokenAmount + " tokens to " + toAddress);
-
 		let currentTokenLocation = $token.location;
 		await combine(currentTokenLocation);
-
 		const contract = await run.load(currentTokenLocation);
 		await contract.sync();
-
 		console.log(contract);
-
 		await run.inventory.sync();
 		const tokens = run.inventory.jigs.filter(jig => jig instanceof contract);
 		console.log(tokens);
-
 		const coin = tokens[0];
-
 		const sent = coin.send(toAddress, tokenAmount);
 		await sent.sync();
 		console.log(sent);
-
 		sendToAddress = "";
 		sendAmount = 0;
 	}
-
 	const combine = async(location) => {
 		const contract = await run.load(location);
 		await contract.sync();
-
 		console.log(contract);
-
 		await run.inventory.sync();
 		const tokens = run.inventory.jigs.filter(jig => jig instanceof contract);
 		console.log(tokens);
-
 		if(tokens.length > 1) {
 			console.log(Number(BigNumber(tokens[0].amount)) + Number(BigNumber(tokens[1].amount)));
 			console.log(Number(BigNumber(tokens[0].amount)) + Number(BigNumber(tokens[1].amount)) > MAX_SAFE_VALUE);
 			if(Number(BigNumber(tokens[0].amount)) + Number(BigNumber(tokens[1].amount)) > MAX_SAFE_VALUE) return;
-
 			const combined = tokens[0].combine(...tokens.slice(1));
 			await combined.sync();
 		}
 	}
-
 	const newWallet = async() => {
 		console.log("Creating new wallet");
 		let newPrivKey = bsv.PrivateKey.fromRandom();
-
 		let addressFromPrivKey = newPrivKey.toAddress();
 		console.log(addressFromPrivKey);
-
 		console.log(newPrivKey.toString());
 		inputPrivKey = newPrivKey.toString();
 	}
-
 	const loadFromPrivKey = async(key) => {
 		try {
 			let privKeyFromWIF = bsv.PrivateKey.fromWIF(key);
 			let addressFromPrivKey = privKeyFromWIF.toAddress();
-
 			address.set(addressFromPrivKey);
 			createQRCode();
-
 			privateKey.set(key);
-
 			localStorage.setItem("privKey", key);
-
 			await loadRun();
 		} catch(e) {
 			loginErrorMessage = "Error: Bad input!";
 		}
 	}
-
 	const setPage = async(newPage) => {
 		page = newPage;
 		token.set(null);
-
 		if(newPage === "logout") {
 			address.set(null);
 			privateKey.set(null);
@@ -215,30 +164,23 @@
 			loadAllTokens();
 		}
 	}
-
 	const loadAllTokens = async () => {
 		await run.inventory.sync();
 		bsvBalance = await run.purse.balance();
-
 		let tempTokens = [];
-
 		let classes = [];
 		let jigs = run.inventory.jigs;
 		let code = run.inventory.code;
-
 		for(let i = 0; i < jigs.length; i++) {
 			if(jigs[i] instanceof Token) {
 				const rawtx = await run.blockchain.fetch(jigs[i].location.split("_")[0]);
 				const tknContract = Run.util.metadata(rawtx).ref[0];
-
 				console.log(Run.util.metadata(rawtx));
-
 				if(!classes.includes(tknContract)) {
 					classes.push(tknContract);
 				}
 			}
 		}
-
 		for(let i = 0; i < code.length; i++) {
 			if(Object.keys(code[i].deps)[0] === "Token") {
 				if(!classes.includes(code[i].location)) {
@@ -246,28 +188,21 @@
 				}
 			}
 		}
-
 		console.log(classes);
-
 		for(let i = 0; i < classes.length; i++) {
 			const contract = await run.load(classes[i]);
 			//await contract.sync();
-
 			if(Object.keys(contract.deps)[0] === "Token") {
 				let tknName = contract.name.replace(/_/g, " ");
 				let tknSymbol = contract.symbol;
 				let tknDecimals = contract.decimals;
 				let tknEmoji = contract.metadata.emoji;
 				let tknLocation = contract.location;
-
 				const tknJigs = run.inventory.jigs.filter(jig => jig instanceof contract);
-
 				let tknBalance = tknJigs.reduce(function(a, b){
 					return a + b['amount'];
 				}, 0);
-
 				tknBalance = await convAtomicToDecimal(tknBalance, tknDecimals);
-
 				if(tknBalance > 0) {
 					tempTokens = [...tempTokens, {
 						name: tknName,
@@ -279,38 +214,29 @@
 				}
 			}
 		}
-
 		tokens.set(tempTokens);
 	}
-
 	const logout = async() => {
 		setPage("logout");		
 		localStorage.setItem("privKey", "");
 	}
-
 	const createQRCode = async () => {
 		const qr = qrcode(0, 'L');
 		qr.width = 200;
 		qr.addData(`bitcoin:${$address}?sv`);
 		qr.make();
-
 		addressQR = qr.createDataURL(6);
 	}
-
 	const convAtomicToDecimal = async (amount, decimals) => {
 		let atomicAmount = new BigNumber(amount);
 		let atomCalc = atomicAmount.div(10**decimals);
-
 		return atomCalc;
 	}
-
 	const convDecimalToAtomic = async (amount, decimals) => {
 		let decimalAmount = new BigNumber(amount);
 		let decCalc = decimalAmount.times(10**decimals);
-
 		return decCalc;
 	}
-
 	function delay(ms) {
 		return new Promise(resolve => setTimeout(resolve, ms));
 	}
