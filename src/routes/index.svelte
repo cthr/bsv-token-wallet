@@ -1,6 +1,5 @@
 <script>
 	import { onMount } from 'svelte';
-	import BigNumber from 'bignumber.js';
 	import { address, privateKey, token, tokens } from '../util/stores';
 	import CreateToken from '../lib/CreateToken.svelte';
 	import Login from '../lib/Login.svelte';
@@ -243,13 +242,13 @@
 	}
 
 	const convAtomicToDecimal = async (amount, decimals) => {
-		let atomicAmount = new BigNumber(amount);
+		let atomicAmount = BN(amount);
 		let atomCalc = atomicAmount.div(10**decimals);
 		return atomCalc;
 	}
 
 	const convDecimalToAtomic = async (amount, decimals) => {
-		let decimalAmount = new BigNumber(amount);
+		let decimalAmount = BN(amount);
 		let decCalc = decimalAmount.times(10**decimals);
 		return decCalc;
 	}
@@ -338,7 +337,7 @@
 
 				<div class="flex mt-4 float-right">
 					<a on:click|preventDefault={() => { setPage("wallet"); token.set(null); }} href="#" class="block px-3 py-2 mx-4 text-xs font-semibold text-gray-700 transition-colors duration-200 transform bg-gray-200 rounded-md hover:bg-gray-300">Go Back</a>
-					<a on:click|preventDefault={() => {$token === "bitcoin" ? sendBitcoin(sendToAddress, parseInt(sendAmount)) : send(sendToAddress, sendAmount, $token.decimals)}} href="#" class="block px-3 py-2 text-xs font-semibold text-white transition-colors duration-200 transform bg-gray-900 rounded-md hover:bg-gray-700">Send Token</a>
+					<a on:click|preventDefault={() => {$token === "bitcoin" ? sendBitcoin(sendToAddress, sendAmount) : send(sendToAddress, sendAmount, $token.decimals)}} href="#" class="block px-3 py-2 text-xs font-semibold text-white transition-colors duration-200 transform bg-gray-900 rounded-md hover:bg-gray-700">Send Token</a>
 				</div>
 			{/if}
 		{:else if page === "address"}
